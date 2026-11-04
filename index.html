@@ -1,0 +1,731 @@
+﻿<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-950 text-slate-100 select-none overflow-hidden">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Liquid Motion Playground</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #00f3ff;
+            --primary-glow: rgba(0, 243, 255, 0.4);
+            --bg-dark: #030712;
+            --panel-bg: rgba(15, 23, 42, 0.7);
+            --panel-border: rgba(0, 243, 255, 0.25);
+        }
+
+        body {
+            font-family: 'Rajdhani', sans-serif;
+            background-color: var(--bg-dark);
+            color: #f1f5f9;
+        }
+
+        .font-orbitron { font-family: 'Orbitron', sans-serif; }
+        .font-mono-tech { font-family: 'Share Tech Mono', monospace; }
+
+        /* Glassmorphic Paneling */
+        .glass-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--panel-border);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(3, 7, 18, 0.8);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary);
+            border-radius: 2px;
+        }
+
+        /* Input styling */
+        input[type="range"] {
+            -webkit-appearance: none;
+            background: rgba(30, 41, 59, 0.8);
+            border-radius: 4px;
+            height: 6px;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: var(--primary);
+            box-shadow: 0 0 10px var(--primary);
+            cursor: pointer;
+        }
+
+        .btn-active {
+            background-color: rgba(0, 243, 255, 0.2);
+            border-color: var(--primary) !important;
+            color: var(--primary) !important;
+            box-shadow: 0 0 12px var(--primary-glow);
+        }
+    </style>
+</head>
+<body class="h-full w-full relative overflow-hidden flex flex-col justify-between">
+
+    <!-- Fluid Canvas Layer -->
+    <canvas id="fluidCanvas" class="absolute inset-0 w-full h-full z-0 cursor-crosshair"></canvas>
+
+    <!-- Top Floating HUD Navigation Header -->
+    <header class="relative z-20 w-full p-4 flex justify-between items-center pointer-events-none">
+        <div class="glass-panel px-4 py-2 rounded-2xl flex items-center gap-3 pointer-events-auto">
+            <div class="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-400 flex items-center justify-center text-cyan-400 text-lg shadow-[0_0_15px_rgba(0,243,255,0.4)]">
+                <i class="fa-solid fa-droplet animate-pulse"></i>
+            </div>
+            <div>
+                <h1 class="font-orbitron font-extrabold text-sm md:text-base text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-500 tracking-wider">
+                    LIQUID MOTION PLAYGROUND
+                </h1>
+                <p class="text-[10px] text-slate-400 font-mono-tech tracking-widest uppercase">REALTIME FLUID DYNAMICS ENGINE</p>
+            </div>
+        </div>
+
+        <!-- Telemetry & Actions -->
+        <div class="flex items-center gap-2 pointer-events-auto">
+            <!-- Author Badge Header -->
+            <div class="hidden md:flex glass-panel px-3 py-1.5 rounded-xl text-xs font-mono-tech items-center gap-2 border border-cyan-500/30 text-cyan-300 shadow-[0_0_10px_rgba(0,243,255,0.2)]">
+                <i class="fa-solid fa-code text-purple-400"></i>
+                <span>PROJECT BY <strong class="text-white font-orbitron tracking-wider">ANNAS SHAKEEL</strong></span>
+            </div>
+
+            <!-- Telemetry Display -->
+            <div class="hidden sm:flex glass-panel px-3 py-1.5 rounded-xl gap-4 font-mono-tech text-xs text-slate-300">
+                <div>FPS: <span id="fpsCounter" class="text-emerald-400 font-bold">60</span></div>
+                <div>PARTICLES: <span id="particleCounter" class="text-cyan-400 font-bold">1200</span></div>
+            </div>
+
+            <!-- Global Action Controls -->
+            <button id="pauseBtn" onclick="togglePause()" class="w-10 h-10 rounded-xl glass-panel text-slate-200 hover:text-cyan-400 flex items-center justify-center transition">
+                <i id="pauseIcon" class="fa-solid fa-pause"></i>
+            </button>
+            <button onclick="resetFluid()" class="w-10 h-10 rounded-xl glass-panel text-slate-200 hover:text-amber-400 flex items-center justify-center transition" title="Reset Particles">
+                <i class="fa-solid fa-rotate-right"></i>
+            </button>
+            <button onclick="takeSnapshot()" class="w-10 h-10 rounded-xl glass-panel text-slate-200 hover:text-purple-400 flex items-center justify-center transition" title="Capture Snapshot">
+                <i class="fa-solid fa-camera"></i>
+            </button>
+            <button onclick="toggleSidebar()" class="w-10 h-10 rounded-xl glass-panel text-cyan-400 border border-cyan-500/40 flex items-center justify-center transition" title="Toggle Control Panel">
+                <i class="fa-solid fa-sliders"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Sidebar Glass Control Panel -->
+    <aside id="sidebar" class="fixed top-20 right-4 bottom-4 w-80 md:w-96 glass-panel rounded-3xl p-5 z-30 flex flex-col justify-between overflow-y-auto space-y-6 transition-all duration-300 ease-in-out">
+        
+        <div class="space-y-5">
+            <!-- Panel Header -->
+            <div class="flex justify-between items-center border-b border-slate-700/50 pb-3">
+                <span class="font-orbitron text-xs font-bold text-cyan-400 tracking-widest uppercase flex items-center gap-2">
+                    <i class="fa-solid fa-microchip"></i> FLUID CONTROL BENCH
+                </span>
+                <button onclick="toggleSidebar()" class="text-slate-400 hover:text-slate-100 text-xs font-mono-tech">
+                    <i class="fa-solid fa-xmark"></i> CLOSE
+                </button>
+            </div>
+
+            <!-- Interactive Tool Selection -->
+            <div>
+                <label class="text-xs font-mono-tech text-slate-400 block mb-2">INTERACTION FORCE TOOL</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="setTool('attract')" id="tool-attract" class="tool-btn btn-active p-2 rounded-xl border border-slate-700 text-xs font-orbitron flex flex-col items-center gap-1 transition">
+                        <i class="fa-solid fa-magnet"></i> PULL
+                    </button>
+                    <button onclick="setTool('repel')" id="tool-repel" class="tool-btn p-2 rounded-xl border border-slate-700 text-xs font-orbitron flex flex-col items-center gap-1 transition">
+                        <i class="fa-solid fa-hand-back-fist"></i> BLAST
+                    </button>
+                    <button onclick="setTool('vortex')" id="tool-vortex" class="tool-btn p-2 rounded-xl border border-slate-700 text-xs font-orbitron flex flex-col items-center gap-1 transition">
+                        <i class="fa-solid fa-hurricane"></i> VORTEX
+                    </button>
+                    <button onclick="setTool('splatter')" id="tool-splatter" class="tool-btn p-2 rounded-xl border border-slate-700 text-xs font-orbitron flex flex-col items-center gap-1 transition">
+                        <i class="fa-solid fa-burst"></i> BURST
+                    </button>
+                    <button onclick="setTool('emitter')" id="tool-emitter" class="tool-btn p-2 rounded-xl border border-slate-700 text-xs font-orbitron flex flex-col items-center gap-1 transition">
+                        <i class="fa-solid fa-faucet-drip"></i> FOUNTAIN
+                    </button>
+                    <button onclick="setTool('obstacle')" id="tool-obstacle" class="tool-btn p-2 rounded-xl border border-slate-700 text-xs font-orbitron flex flex-col items-center gap-1 transition">
+                        <i class="fa-solid fa-circle-minus"></i> BARRIER
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Preset Scenes -->
+            <div>
+                <label class="text-xs font-mono-tech text-slate-400 block mb-2">SIMULATION PRESETS</label>
+                <div class="grid grid-cols-2 gap-2 text-xs font-orbitron">
+                    <button onclick="loadPreset('zeroG')" class="p-2 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-cyan-400 text-slate-300">
+                        ⚡ Zero-G Jelly
+                    </button>
+                    <button onclick="loadPreset('fountain')" class="p-2 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-cyan-400 text-slate-300">
+                        🌊 Neon Fountain
+                    </button>
+                    <button onclick="loadPreset('storm')" class="p-2 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-cyan-400 text-slate-300">
+                        🌀 Vortex Storm
+                    </button>
+                    <button onclick="loadPreset('slime')" class="p-2 rounded-xl bg-slate-900/80 border border-slate-800 hover:border-cyan-400 text-slate-300">
+                        🧪 Acid Slime
+                    </button>
+                </div>
+            </div>
+
+            <!-- Visual Rendering Shader Mode -->
+            <div>
+                <label class="text-xs font-mono-tech text-slate-400 block mb-2">VISUAL SHADER STYLES</label>
+                <select id="renderStyle" onchange="setRenderStyle(this.value)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-orbitron text-cyan-400 focus:outline-none focus:border-cyan-400">
+                    <option value="neon">Glowing Neon Liquid</option>
+                    <option value="chrome">Liquid Chrome / Mercury</option>
+                    <option value="plasma">Electric Plasma</option>
+                    <option value="prism">Bioluminescent Prism</option>
+                    <option value="metaball">Metaballs / Acid Blob</option>
+                </select>
+            </div>
+
+            <!-- Physics Tuning Sliders -->
+            <div class="space-y-3 pt-2 border-t border-slate-700/50">
+                <div>
+                    <div class="flex justify-between text-xs font-mono-tech text-slate-300 mb-1">
+                        <span>PARTICLE DENSITY</span>
+                        <span id="particleVal" class="text-cyan-400">1200</span>
+                    </div>
+                    <input type="range" id="particleSlider" min="200" max="3000" step="100" value="1200" oninput="updateParticleCount(this.value)" class="w-full">
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-xs font-mono-tech text-slate-300 mb-1">
+                        <span>VISCOSITY (STICKINESS)</span>
+                        <span id="viscosityVal" class="text-cyan-400">0.96</span>
+                    </div>
+                    <input type="range" id="viscositySlider" min="0.85" max="0.99" step="0.01" value="0.96" oninput="updateViscosity(this.value)" class="w-full">
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-xs font-mono-tech text-slate-300 mb-1">
+                        <span>GRAVITY FORCE</span>
+                        <span id="gravityVal" class="text-cyan-400">0.35</span>
+                    </div>
+                    <input type="range" id="gravitySlider" min="-0.8" max="0.8" step="0.05" value="0.35" oninput="updateGravity(this.value)" class="w-full">
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-xs font-mono-tech text-slate-300 mb-1">
+                        <span>SURFACE TENSION & BLUR</span>
+                        <span id="blurVal" class="text-cyan-400">16</span>
+                    </div>
+                    <input type="range" id="blurSlider" min="4" max="35" step="1" value="16" oninput="updateBlur(this.value)" class="w-full">
+                </div>
+            </div>
+
+            <!-- Audio Reactivity & Extra Toggles -->
+            <div class="pt-2 border-t border-slate-700/50 space-y-2 font-mono-tech text-xs">
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-microphone text-purple-400"></i> AUDIO REACTIVE MODE
+                    </span>
+                    <button id="audioBtn" onclick="toggleAudio()" class="px-3 py-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-400 hover:border-purple-400 transition">
+                        OFF
+                    </button>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-slate-300 flex items-center gap-2">
+                        <i class="fa-solid fa-arrows-spin text-emerald-400"></i> EMITTER AUTO-SPAWN
+                    </span>
+                    <button id="emitterBtn" onclick="toggleEmitter()" class="px-3 py-1 rounded-lg bg-slate-900 border border-slate-700 text-slate-400 hover:border-emerald-400 transition">
+                        OFF
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Footer Clear Obstacles Button -->
+        <div class="pt-3 border-t border-slate-700/50">
+            <button onclick="clearObstacles()" class="w-full py-2 rounded-xl bg-rose-500/10 border border-rose-500/40 text-rose-400 hover:bg-rose-500/20 text-xs font-orbitron transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-trash-can"></i> CLEAR BARRIERS
+            </button>
+        </div>
+    </aside>
+
+    <!-- Bottom On-Screen Interactive Hint HUD -->
+    <div class="relative z-20 w-full p-4 flex flex-col md:flex-row justify-between items-center gap-2 pointer-events-none">
+        <div class="glass-panel px-4 py-1.5 rounded-full text-xs font-mono-tech text-slate-400 flex items-center gap-2 pointer-events-auto shadow-lg">
+            <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+            <span id="interactionHint">CLICK & DRAG TO PULL FLUID PARTICLES</span>
+        </div>
+
+        <!-- Glowing Bottom-Right Watermark Badge -->
+        <div class="glass-panel px-4 py-1.5 rounded-full text-xs font-mono-tech text-slate-300 flex items-center gap-2 pointer-events-auto border border-cyan-500/30 shadow-[0_0_15px_rgba(0,243,255,0.25)]">
+            <i class="fa-solid fa-sparkles text-cyan-400 animate-pulse"></i>
+            <span>MADE BY <strong class="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400 font-orbitron tracking-wider">ANNAS SHAKEEL</strong></span>
+        </div>
+    </div>
+
+    <!-- Liquid Engine Script -->
+    <script>
+        // --- Canvas Initialization & Global State ---
+        const canvas = document.getElementById('fluidCanvas');
+        const ctx = canvas.getContext('2d');
+
+        let width = canvas.width = window.innerWidth;
+        let height = canvas.height = window.innerHeight;
+
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        });
+
+        // Configurable Parameters
+        const config = {
+            particleCount: 1200,
+            viscosity: 0.96,
+            gravity: 0.35,
+            particleRadius: 8,
+            blurIntensity: 16,
+            activeTool: 'attract', // attract, repel, vortex, splatter, emitter, obstacle
+            renderStyle: 'neon',  // neon, chrome, plasma, prism, metaball
+            isPaused: false,
+            audioReactive: false,
+            autoEmitter: false
+        };
+
+        // Telemetry Counters
+        let lastTime = performance.now();
+        let frameCount = 0;
+        let fps = 60;
+
+        // Particle Class
+        class Particle {
+            constructor(x, y) {
+                this.x = x || Math.random() * width;
+                this.y = y || Math.random() * height * 0.5;
+                this.vx = (Math.random() - 0.5) * 4;
+                this.vy = (Math.random() - 0.5) * 4;
+                this.radius = config.particleRadius;
+                this.hue = Math.random() * 360;
+                this.life = 1;
+            }
+
+            update(audioBoost = 1) {
+                if (config.isPaused) return;
+
+                // Apply Gravity
+                this.vy += config.gravity * audioBoost;
+
+                // Apply Viscosity Damping
+                this.vx *= config.viscosity;
+                this.vy *= config.viscosity;
+
+                // Move Particle
+                this.x += this.vx;
+                this.y += this.vy;
+
+                // Screen Boundary Collisions with bounce & friction
+                const bounce = 0.65;
+                if (this.x < this.radius) {
+                    this.x = this.radius;
+                    this.vx *= -bounce;
+                } else if (this.x > width - this.radius) {
+                    this.x = width - this.radius;
+                    this.vx *= -bounce;
+                }
+
+                if (this.y < this.radius) {
+                    this.y = this.radius;
+                    this.vy *= -bounce;
+                } else if (this.y > height - this.radius) {
+                    this.y = height - this.radius;
+                    this.vy *= -bounce;
+                }
+
+                // Obstacle Collisions
+                obstacles.forEach(obs => {
+                    const dx = this.x - obs.x;
+                    const dy = this.y - obs.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const minDist = this.radius + obs.r;
+
+                    if (dist < minDist) {
+                        const nx = dx / (dist || 1);
+                        const ny = dy / (dist || 1);
+                        this.x = obs.x + nx * minDist;
+                        this.y = obs.y + ny * minDist;
+
+                        // Reflect velocity
+                        const dot = this.vx * nx + this.vy * ny;
+                        this.vx = (this.vx - 2 * dot * nx) * bounce;
+                        this.vy = (this.vy - 2 * dot * ny) * bounce;
+                    }
+                });
+            }
+        }
+
+        // Particle System Array & Obstacles
+        let particles = [];
+        let obstacles = [];
+
+        function initParticles(count) {
+            particles = [];
+            for (let i = 0; i < count; i++) {
+                particles.push(new Particle());
+            }
+            document.getElementById('particleCounter').textContent = particles.length;
+        }
+
+        // --- Mouse & Touch Events Handler ---
+        let mouse = { x: -1000, y: -1000, isDown: false, radius: 150 };
+
+        function updateMouse(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            mouse.x = clientX - rect.left;
+            mouse.y = clientY - rect.top;
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            mouse.isDown = true;
+            updateMouse(e);
+            if (config.activeTool === 'splatter') triggerSplatter(mouse.x, mouse.y);
+            if (config.activeTool === 'obstacle') addObstacle(mouse.x, mouse.y);
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            updateMouse(e);
+        });
+
+        window.addEventListener('mouseup', () => {
+            mouse.isDown = false;
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            mouse.isDown = true;
+            updateMouse(e);
+            if (config.activeTool === 'splatter') triggerSplatter(mouse.x, mouse.y);
+            if (config.activeTool === 'obstacle') addObstacle(mouse.x, mouse.y);
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            updateMouse(e);
+        });
+
+        window.addEventListener('touchend', () => {
+            mouse.isDown = false;
+        });
+
+        // --- Interaction Forces ---
+        function applyInteractionForces() {
+            if (!mouse.isDown && config.activeTool !== 'emitter') return;
+
+            // Auto Emitter Stream
+            if (config.activeTool === 'emitter' || config.autoEmitter) {
+                const emitX = mouse.isDown ? mouse.x : width / 2;
+                const emitY = mouse.isDown ? mouse.y : 80;
+                for (let i = 0; i < 3; i++) {
+                    const p = particles[Math.floor(Math.random() * particles.length)];
+                    if (p) {
+                        p.x = emitX + (Math.random() - 0.5) * 20;
+                        p.y = emitY;
+                        p.vx = (Math.random() - 0.5) * 8;
+                        p.vy = Math.random() * 5 + 2;
+                    }
+                }
+            }
+
+            if (!mouse.isDown) return;
+
+            particles.forEach(p => {
+                const dx = mouse.x - p.x;
+                const dy = mouse.y - p.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < mouse.radius && dist > 0) {
+                    const force = (1 - dist / mouse.radius);
+
+                    if (config.activeTool === 'attract') {
+                        p.vx += (dx / dist) * force * 1.8;
+                        p.vy += (dy / dist) * force * 1.8;
+                    } else if (config.activeTool === 'repel') {
+                        p.vx -= (dx / dist) * force * 3.5;
+                        p.vy -= (dy / dist) * force * 3.5;
+                    } else if (config.activeTool === 'vortex') {
+                        const angle = Math.atan2(dy, dx) + Math.PI / 2;
+                        p.vx += Math.cos(angle) * force * 4.0;
+                        p.vy += Math.sin(angle) * force * 4.0;
+                    }
+                }
+            });
+        }
+
+        function triggerSplatter(x, y) {
+            particles.forEach(p => {
+                const dx = p.x - x;
+                const dy = p.y - y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < 180) {
+                    const force = (1 - dist / 180) * 25;
+                    const angle = Math.atan2(dy, dx);
+                    p.vx += Math.cos(angle) * force;
+                    p.vy += Math.sin(angle) * force;
+                }
+            });
+        }
+
+        function addObstacle(x, y) {
+            obstacles.push({ x, y, r: Math.random() * 25 + 25 });
+        }
+
+        function clearObstacles() {
+            obstacles = [];
+        }
+
+        // --- Web Audio API Integration ---
+        let audioCtx, analyser, dataArray;
+        function toggleAudio() {
+            const btn = document.getElementById('audioBtn');
+            if (!config.audioReactive) {
+                navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    analyser = audioCtx.createAnalyser();
+                    analyser.fftSize = 64;
+                    const source = audioCtx.createMediaStreamSource(stream);
+                    source.connect(analyser);
+                    dataArray = new Uint8Array(analyser.frequencyBinCount);
+                    config.audioReactive = true;
+                    btn.textContent = 'ON';
+                    btn.classList.add('text-purple-400', 'border-purple-400');
+                }).catch(err => {
+                    alert('Microphone access is required for Audio Reactive mode.');
+                });
+            } else {
+                config.audioReactive = false;
+                btn.textContent = 'OFF';
+                btn.classList.remove('text-purple-400', 'border-purple-400');
+            }
+        }
+
+        function getAudioBoost() {
+            if (!config.audioReactive || !analyser) return 1;
+            analyser.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for (let i = 0; i < 10; i++) sum += dataArray[i];
+            const avg = sum / 10;
+            return 1 + (avg / 255) * 1.5;
+        }
+
+        // --- Rendering Styles Engine ---
+        function render() {
+            // Clear Frame with Trail Effect
+            ctx.fillStyle = 'rgba(3, 7, 18, 0.25)';
+            ctx.fillRect(0, 0, width, height);
+
+            const audioBoost = getAudioBoost();
+
+            // Render Obstacles
+            obstacles.forEach(obs => {
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(obs.x, obs.y, obs.r, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+                ctx.strokeStyle = '#00f3ff';
+                ctx.lineWidth = 2;
+                ctx.shadowColor = '#00f3ff';
+                ctx.shadowBlur = 10;
+                ctx.fill();
+                ctx.stroke();
+                ctx.restore();
+            });
+
+            // Particles Rendering Styles
+            ctx.save();
+            if (config.renderStyle === 'neon') {
+                ctx.shadowBlur = config.blurIntensity;
+                particles.forEach((p, i) => {
+                    p.update(audioBoost);
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius * (config.audioReactive ? audioBoost : 1), 0, Math.PI * 2);
+                    const hue = (i * 0.2 + p.x * 0.05) % 360;
+                    ctx.fillStyle = `hsl(${hue}, 100%, 60%)`;
+                    ctx.shadowColor = `hsl(${hue}, 100%, 60%)`;
+                    ctx.fill();
+                });
+            } else if (config.renderStyle === 'chrome') {
+                ctx.shadowBlur = 4;
+                ctx.shadowColor = '#ffffff';
+                particles.forEach((p) => {
+                    p.update(audioBoost);
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    const grad = ctx.createRadialGradient(p.x - 2, p.y - 2, 1, p.x, p.y, p.radius);
+                    grad.addColorStop(0, '#ffffff');
+                    grad.addColorStop(0.5, '#94a3b8');
+                    grad.addColorStop(1, '#1e293b');
+                    ctx.fillStyle = grad;
+                    ctx.fill();
+                });
+            } else if (config.renderStyle === 'plasma') {
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#a855f7';
+                particles.forEach((p) => {
+                    p.update(audioBoost);
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius * 1.2, 0, Math.PI * 2);
+                    ctx.fillStyle = '#c084fc';
+                    ctx.fill();
+                });
+            } else if (config.renderStyle === 'prism') {
+                const time = Date.now() * 0.002;
+                particles.forEach((p) => {
+                    p.update(audioBoost);
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    const hue = (Math.atan2(p.vy, p.vx) * 180 / Math.PI + time * 50) % 360;
+                    ctx.fillStyle = `hsl(${hue}, 90%, 55%)`;
+                    ctx.fill();
+                });
+            } else if (config.renderStyle === 'metaball') {
+                ctx.shadowBlur = config.blurIntensity * 1.5;
+                ctx.shadowColor = '#22c55e';
+                particles.forEach((p) => {
+                    p.update(audioBoost);
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius * 1.4, 0, Math.PI * 2);
+                    ctx.fillStyle = '#4ade80';
+                    ctx.fill();
+                });
+            }
+            ctx.restore();
+
+            // Apply Interaction forces
+            applyInteractionForces();
+
+            // Telemetry FPS Calculation
+            const now = performance.now();
+            frameCount++;
+            if (now - lastTime >= 1000) {
+                fps = frameCount;
+                frameCount = 0;
+                lastTime = now;
+                document.getElementById('fpsCounter').textContent = fps;
+            }
+
+            requestAnimationFrame(render);
+        }
+
+        // --- Controls & UI Handlers ---
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('translate-x-full');
+            sidebar.classList.toggle('opacity-0');
+        }
+
+        function setTool(toolName) {
+            config.activeTool = toolName;
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('btn-active'));
+            const btn = document.getElementById(`tool-${toolName}`);
+            if (btn) btn.classList.add('btn-active');
+
+            const hints = {
+                attract: 'CLICK & DRAG TO PULL FLUID PARTICLES',
+                repel: 'CLICK & DRAG TO BLAST FLUID AWAY',
+                vortex: 'CLICK & DRAG TO CREATE A SWIRLING FLUID WHIRLPOOL',
+                splatter: 'CLICK ANYWHERE TO TRIGGER A FLUID EXPLOSION BURST',
+                emitter: 'CLICK OR HOLD TO EMIT CONTINUOUS LIQUID STREAMS',
+                obstacle: 'CLICK ANYWHERE TO SPAWN COLLISION BARRIERS'
+            };
+            document.getElementById('interactionHint').textContent = hints[toolName] || '';
+        }
+
+        function setRenderStyle(style) {
+            config.renderStyle = style;
+        }
+
+        function updateParticleCount(val) {
+            config.particleCount = parseInt(val);
+            document.getElementById('particleVal').textContent = val;
+            initParticles(config.particleCount);
+        }
+
+        function updateViscosity(val) {
+            config.viscosity = parseFloat(val);
+            document.getElementById('viscosityVal').textContent = val;
+        }
+
+        function updateGravity(val) {
+            config.gravity = parseFloat(val);
+            document.getElementById('gravityVal').textContent = val;
+        }
+
+        function updateBlur(val) {
+            config.blurIntensity = parseInt(val);
+            document.getElementById('blurVal').textContent = val;
+        }
+
+        function togglePause() {
+            config.isPaused = !config.isPaused;
+            document.getElementById('pauseIcon').className = config.isPaused ? 'fa-solid fa-play' : 'fa-solid fa-pause';
+        }
+
+        function toggleEmitter() {
+            config.autoEmitter = !config.autoEmitter;
+            const btn = document.getElementById('emitterBtn');
+            btn.textContent = config.autoEmitter ? 'ON' : 'OFF';
+            btn.classList.toggle('text-emerald-400', config.autoEmitter);
+            btn.classList.toggle('border-emerald-400', config.autoEmitter);
+        }
+
+        function resetFluid() {
+            initParticles(config.particleCount);
+            obstacles = [];
+        }
+
+        function loadPreset(name) {
+            if (name === 'zeroG') {
+                updateGravity(0);
+                updateViscosity(0.98);
+                setRenderStyle('prism');
+            } else if (name === 'fountain') {
+                updateGravity(0.4);
+                updateViscosity(0.95);
+                setRenderStyle('neon');
+                toggleEmitter();
+            } else if (name === 'storm') {
+                setTool('vortex');
+                updateGravity(0.1);
+                setRenderStyle('plasma');
+            } else if (name === 'slime') {
+                updateViscosity(0.88);
+                updateGravity(0.5);
+                setRenderStyle('metaball');
+            }
+        }
+
+        function takeSnapshot() {
+            const link = document.createElement('a');
+            link.download = `liquid-motion-${Date.now()}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        // --- Start Application ---
+        window.onload = () => {
+            initParticles(config.particleCount);
+            render();
+        };
+    </script>
+</body>
+</html>
